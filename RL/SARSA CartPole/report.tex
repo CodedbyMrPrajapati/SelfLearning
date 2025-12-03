@@ -1,0 +1,176 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Solving CartPole using SARSA with Discretized State Space}
+\author{Piyush Prajapati}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This project implements the classical CartPole control task using a tabular
+SARSA algorithm. A custom physics-based CartPole environment was written from
+scratch, including a visualization system in Pygame. The state space was
+discretized into bins for tabular learning. During development several critical
+issues were discovered, such as incorrect force application and missing
+epsilon--greedy decay, which prevented learning. After fixing these issues and
+designing good discretization boundaries, the agent successfully learned to
+balance the pole for long durations. This report explains the mathematical
+foundation, implementation, encountered problems, and final results.
+\end{abstract}
+
+\section{Introduction}
+The CartPole system consists of a cart of mass $M$ that moves horizontally and
+a pole of mass $m$ and length $2L$ hinged on top. The goal is to apply forces
+to the cart such that the pole remains upright. The environment provides a
+continuous 4-dimensional state:
+\[
+(x, \dot{x}, \theta, \dot{\theta})
+\]
+where $x$ is cart position, $\theta$ is pole angle from vertical, and dots denote
+time derivatives. For tabular RL this continuous state must be discretized.
+
+This project uses the SARSA on-policy temporal-difference method to learn a
+Q-function for three possible actions: pushing the cart left, pushing it right,
+or applying no force.
+
+\section{Dynamics Derivation}
+Only a horizontal force $F$ is externally applied to the system. Although many
+forces inside the cart--pole system are internal (tension, constraint forces),
+they influence motion through coupling with angular acceleration. The
+well-known non-linear dynamics are:
+\[
+\ddot{x} = \frac{F + mL\dot{\theta}^2\sin\theta}{M+m}
+          - \frac{mL\cos\theta}{M+m}\ddot{\theta}
+\]
+\[
+\ddot{\theta}
+= \frac{g\sin\theta - \frac{F + mL\dot{\theta}^2\sin\theta}{M+m}\cos\theta}
+       {L\left(\frac{4}{3}-\frac{m\cos^2\theta}{M+m}\right)}
+\]
+
+The agent controls the force through:
+\[
+F = a \cdot F_{\text{max}}, \qquad a \in \{-1,0,1\}
+\]
+
+Euler integration is used to update the state:
+\[
+x_{t+1} = x_t + \dot{x}_t\,\tau,\quad
+\dot{x}_{t+1} = \dot{x}_t + \ddot{x}_t\,\tau
+\]
+and likewise for $\theta$ and $\dot{\theta}$.
+
+\section{State Discretization}
+The continuous space was clipped to safe bounds:
+\[
+x \in [-2.4,2.4],\quad
+\dot{x} \in [-3,3],\quad
+\theta \in [-0.418,0.418],\quad
+\dot{\theta} \in [-3,3]
+\]
+Each dimension was divided into evenly spaced bins using
+\texttt{numpy.linspace}, producing a discrete state ID:
+\[
+s = (b_x, b_{\dot{x}}, b_\theta, b_{\dot{\theta}})
+\]
+
+A good discretization was crucial. Too few bins produced a coarse state
+representation; too many slowed learning due to state-space explosion.
+Experimentally, 10 bins per dimension provided stable learning.
+
+\section{RL Algorithm: SARSA}
+SARSA updates the Q-values using:
+\[
+Q(s,a) \leftarrow Q(s,a)
++ \alpha\left[r + \gamma Q(s', a') - Q(s,a)\right]
+\]
+where:
+\begin{itemize}
+    \item $\alpha$ is learning rate.
+    \item $\gamma$ is discount factor.
+    \item $a'$ is selected by the same $\epsilon$-greedy policy (on-policy).
+\end{itemize}
+
+Exploration followed:
+\[
+\epsilon = \epsilon_0 \cdot \text{decay}^{t}
+\]
+This prevented stagnation and ensured eventual exploitation.
+
+\section{Major Issues and Fixes}
+During initial development the agent completely failed to learn due to two
+major bugs:
+
+\subsection{Incorrect Force Application}
+The force was mistakenly written as:
+\[
+F = F_{\text{max}}
+\]
+instead of:
+\[
+F = a \cdot F_{\text{max}}
+\]
+This meant actions had no effect, leading to random behaviour and zero learning.
+
+\subsection{Epsilon Not Updated}
+Exploration never decreased because $\epsilon$ was not decayed each episode. The
+policy remained fully random, preventing learning.
+
+\subsection{Discretization Mistakes}
+Earlier discretization used the wrong variable in some bin computations and
+incorrect sign ranges. These generated inconsistent states that destabilized
+learning. Switching to \texttt{numpy.digitize} with linspace fixed the issue.
+
+\subsection{Reward Shaping}
+The environment supplies reward $1$ for each balanced step, but no penalty for
+unstable states. Learning improved significantly with:
+\begin{itemize}
+    \item episode reward $=1$ until failure,
+    \item no additional shaping to avoid biasing behaviour,
+    \item long training (over 200k episodes).
+\end{itemize}
+
+\section{Results}
+After fixing the above issues, the agent consistently learned to balance the
+pole for long durations. The training curve showed:
+\begin{itemize}
+    \item rapid initial improvement,
+    \item occasional dips due to exploration,
+    \item eventual stabilization at high episode lengths.
+\end{itemize}
+
+Because CartPole is naturally easy for tabular SARSA with good discretization,
+episodes began reaching the time limit during final training.
+
+\section{Saving and Loading Q-Tables}
+Q-tables were stored compactly using compressed NumPy archives:
+\[
+\texttt{np.savez\_compressed}
+\]
+containing:
+\begin{itemize}
+    \item keys: discretized states,
+    \item vals: Q-values for actions,
+    \item scores: historical episode returns.
+\end{itemize}
+This allowed training to resume instantly and made Q-table visualization easy.
+
+\section{Conclusion}
+This project successfully implemented the CartPole environment, discretization,
+and SARSA learning algorithm from scratch. The main challenges involved physics
+correctness, action-force coupling, exploration strategy, and reliable binning.
+After resolving these issues the agent learned stable balancing behaviour.
+
+Future work may include:
+\begin{itemize}
+    \item switching to continuous-state RL (Tile Coding or DQN),
+    \item implementing eligibility traces (SARSA($\lambda$)),
+    \item comparing on-policy vs.\ off-policy methods (SARSA vs.\ Q-learning),
+    \item adding performance visualizations inside the simulator.
+\end{itemize}
+
+\end{document}

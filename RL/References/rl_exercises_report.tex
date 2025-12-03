@@ -1,0 +1,55 @@
+
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Reinforcement Learning -- Chapter 1 Exercises (Solutions)}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Exercise 1.1: Self-Play}
+
+If the reinforcement learning agent plays against a random opponent, the environment remains weak and inconsistent, allowing the agent to succeed with relatively simple strategies. However, if the agent plays against itself, the opponent's policy improves as the agent improves. This increases the difficulty of the environment and forces the agent to learn deeper, more strategic behaviors. Thus, self-play would lead to a different, generally stronger method of play, because the agent continuously challenges itself with progressively better opponents.
+
+\vspace{1em}
+
+\section*{Exercise 1.2: Symmetries}
+
+Many tic-tac-toe positions are symmetrically equivalent under rotations and reflections. We can leverage this by modifying the reinforcement learning algorithm so that all symmetric states share the same value. This can be done by canonicalizing states, updating all symmetric variants during learning, or designing features invariant under symmetry. This reduces the effective state space, improves sample efficiency, stabilizes learning, and results in faster convergence.
+
+However, if the opponent does not exploit symmetries, then symmetrically equivalent positions may not have the same empirical value, because the opponent may behave differently in mirrored situations. In this case, forcing symmetric states to share identical values may reduce the agent's ability to exploit the opponent's asymmetric weaknesses. Thus, symmetric positions do not necessarily have the same value when the opponent breaks symmetry.
+
+\vspace{1em}
+
+\section*{Exercise 1.3: Greedy Play}
+
+A greedy player always selects the action it currently believes is best. Such a player would generally learn worse than a non-greedy (exploratory) player. The key issue is that a greedy player does not explore alternative actions and therefore may become stuck in suboptimal strategies. Without exploration, the agent cannot correct early mistaken value estimates, leading to poor long-term performance and failure to discover stronger strategies.
+
+\vspace{1em}
+
+\section*{Exercise 1.4: Learning from Exploration}
+
+If learning updates occur after \emph{all} moves, including exploratory ones, and the step size decreases appropriately, then the value estimates converge to the probabilities of winning under the \emph{exploratory} policy. If we do not learn from exploratory moves, then the values converge to the probabilities of winning under the \emph{target}, purely greedy policy. If we continue to make exploratory moves, it is better to learn the values of the exploratory policy, because those values correspond to the agent's actual long-run behavior. However, the greedy policy's values would correspond to more wins, because it reflects optimal action choices without exploration.
+
+\vspace{1em}
+
+\section*{Exercise 1.5: Other Improvements}
+
+Other improvements to the reinforcement learning tic-tac-toe agent include:
+\begin{itemize}
+    \item Using eligibility traces or TD($\lambda$).
+    \item Incorporating symmetric state augmentations.
+    \item Using function approximation (e.g., neural networks or linear features).
+    \item Using Monte Carlo Tree Search (MCTS).
+    \item Learning action-values instead of state-values.
+    \item Using perfect minimax algorithms, which solve tic-tac-toe exactly.
+\end{itemize}
+
+A better way to solve tic-tac-toe entirely is to use minimax with full game-tree search, which guarantees optimal play and is computationally trivial for such a small game.
+
+\end{document}

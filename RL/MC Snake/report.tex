@@ -1,0 +1,150 @@
+\documentclass[12pt]{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{enumitem}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Monte Carlo Control Based Reinforcement Learning for Snake}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+This project implements a Reinforcement Learning (RL) agent for the Snake game using
+\textbf{Monte Carlo Control with $\epsilon$-soft policies}.
+The objective is to learn a policy that maximizes the snake length
+by eating food while avoiding collisions.
+Episodes correspond to full games until death or stagnation.
+
+\section{Environment and State Representation}
+The game uses a grid of size $32\times 16$ (for a $1024\times 512$ pixel window with 32px tiles).
+At each timestep, the snake can choose one of three actions:
+\[
+A = \{-1 \;(\text{left}),\; 0 \;(\text{forward}),\; 1 \;(\text{right})\}.
+\]
+
+\subsection{Final State Representation}
+The agent observes a compact 6-dimensional binary feature vector:
+
+\begin{align*}
+s = (&d_L, d_F, d_R, f_L, f_F, f_R)
+\end{align*}
+
+Where:
+
+\begin{itemize}[itemsep=0pt]
+    \item $d_L, d_F, d_R$: danger left, front, right (1 if collision will occur)
+    \item $f_L, f_F, f_R$: food direction relative to snake's heading, computed using cross/dot products
+\end{itemize}
+
+This results in a discrete state space of at most $2^6 = 64$ states,
+making Monte Carlo feasible.
+
+\section{Reward Structure}
+
+\begin{itemize}[itemsep=3pt]
+    \item \textbf{Food Reward:} $+10$
+    \item \textbf{Death Penalty:} $-20$
+    \item \textbf{Food Distance Reward (shaping):}
+    \[
+        r_\text{shape} = 0.2 \cdot \text{sign}(d_\text{old} - d_\text{new})
+    \]
+    \item \textbf{Stagnation Penalty:} $-0.1$ per step
+\end{itemize}
+
+This shaping accelerates learning without changing optimality.
+
+\section{Monte Carlo Control Algorithm}
+
+We use \textbf{first-visit, every-episode MC control} with incremental updates:
+\[
+Q(s,a) \leftarrow Q(s,a) + \alpha \left(G - Q(s,a)\right)
+\]
+with $\alpha = 0.1$.
+
+The policy is an $\epsilon$-soft greedy policy:
+\[
+\pi(a|s) =
+\begin{cases}
+1-\epsilon + \frac{\epsilon}{3}, & a = \arg\max Q(s,a) \\
+\frac{\epsilon}{3}, & \text{otherwise}
+\end{cases}
+\]
+
+\section{Exploration Schedule}
+A decaying $\epsilon$ value is used:
+\[
+\epsilon_{k+1} = \epsilon_k \cdot 0.9999
+\]
+Starting from $\epsilon = 0.5$, gradually stabilizing into exploitation.
+
+\section{Stagnation Handling}
+To prevent infinite loops, a maximum step length is used:
+\[
+\text{MAX\_STEP} = 20 + 10 \cdot \text{score}
+\]
+
+This allows longer exploration as the snake grows.
+
+\section{Training Observations}
+
+\subsection{Score Progression}
+The score plot shows a slow but steady increase from $\approx 1$ to $\approx 12$ over 100{,}000 episodes.
+
+\subsection{Return ($G$) Growth}
+Returns improve as the snake learns to:
+\begin{itemize}
+    \item avoid walls more effectively
+    \item reduce unnecessary loops
+    \item approach food reliably
+\end{itemize}
+
+\subsection{Action Distribution}
+Initially, actions are random.
+Gradually, the agent prefers:
+\begin{itemize}
+    \item turning right (dominant)
+    \item forward moves increase as it learns corridors
+\end{itemize}
+
+Left turns remain sparse—indicating slight exploitation bias.
+
+\subsection{Q-value Evolution}
+The $Q_{\max}$ curve approaches values $\approx 60$,
+while $Q_{\min}$ stabilizes at $\approx -20$.
+Mean Q-value slowly increases toward $0$,
+indicating more balanced evaluations.
+
+\subsection{Distance Trends}
+The ratio of ``moving closer" to ``moving farther'' improves significantly,
+confirming food-shaping effectiveness.
+
+\section{Known Limitations}
+\begin{itemize}
+\item Monte Carlo learning is slow because it updates only at episode end.
+\item Policy may converge to a ``loopy but safe'' strategy.
+\item No long-term planning (e.g., tail-chasing for space).
+\item Not optimal for high scores without neural function approximation.
+\end{itemize}
+
+\section{Conclusion}
+Despite using a very small state space and no temporal bootstrapping,
+Monte Carlo control successfully learns:
+\begin{itemize}
+    \item stable survival behavior,
+    \item moderate food-seeking,
+    \item consistent returns,
+    \item and structured action usage.
+\end{itemize}
+
+For future improvements:
+\begin{itemize}
+    \item switch to n-step TD $(n=5)$,
+    \item introduce reward for ``alive with large space'',
+    \item use full-grid neural encodings.
+\end{itemize}
+
+\end{document}
