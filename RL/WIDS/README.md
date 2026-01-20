@@ -1,4 +1,4 @@
-`# RL/WIDS — Notebooks and Exercises
+# RL/WIDS — Notebooks and Exercises
 
 This folder contains Reinforcement Learning (RL) exercises and notebooks from the WIDS module inside the SelfLearning repository.
 
